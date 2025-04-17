@@ -1,0 +1,25 @@
+# Kernel build artifacts
+*.o
+*.ko
+*.mod.c
+*.symvers
+*.order
+*.cmd
+*.mod
+*.tmp
+*.markers
+modules.order
+Module.symvers
+.tmp_versions/
+.project.*
+
+# Editor temp files
+*~
+*.swp
+*.swo
+*.bak
+
+# Compiled output
+project.ko
+project.o
+project.mod

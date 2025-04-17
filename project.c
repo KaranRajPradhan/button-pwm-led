@@ -7,6 +7,7 @@
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #define DEVICE_NAME "project"
 #define SYSFS_DIR   "project"
