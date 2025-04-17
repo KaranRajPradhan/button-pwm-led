@@ -24,7 +24,7 @@
 static struct kobject *project_kobj;
 
 static int irq_btn1, irq_btn2;
-static u64 delta_avg_us = 0;
+static u32 delta_avg_us = 0;
 static int press_count = 0;
 
 static int duty1 = MIN_DUTY;
@@ -33,11 +33,11 @@ static int duty3 = 0;
 
 static uint32_t *taddr = NULL;
 static uint32_t *gpio_base = NULL;
-static u64 last_hw_time = 0;
+static u32 last_hw_time = 0;
 
 static ssize_t speed_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%llu\n", delta_avg_us);
+    return sprintf(buf, "%u\n", delta_avg_us);
 }
 
 static ssize_t duty1_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
@@ -80,10 +80,10 @@ static struct kobj_attribute duty3_attr = __ATTR(duty3, 0660, duty3_show, duty3_
 
 static irqreturn_t button_isr(int irq, void *dev_id)
 {
-    u64 now = (u64)readl(taddr + 1) | ((u64)readl(taddr + 2) << 32);
+    u32 now = readl(taddr + 1); // 32-bit LSB of system timer
 
     if (press_count > 0 && last_hw_time) {
-        u64 delta = now - last_hw_time;
+        u32 delta = now - last_hw_time;
         delta_avg_us = (delta_avg_us * (press_count - 1) + delta) / press_count;
     }
     last_hw_time = now;
@@ -132,8 +132,13 @@ static int __init project_init(void)
     irq_btn1 = gpio_to_irq(GPIO_BTN1);
     irq_btn2 = gpio_to_irq(GPIO_BTN2);
 
-    request_irq(irq_btn1, button_isr, IRQF_TRIGGER_RISING, "btn1", NULL);
-    request_irq(irq_btn2, button_isr, IRQF_TRIGGER_RISING, "btn2", NULL);
+    ret = request_irq(irq_btn1, button_isr, IRQF_TRIGGER_RISING, "btn1", NULL);
+    if (ret)
+        return ret;
+
+    ret = request_irq(irq_btn2, button_isr, IRQF_TRIGGER_RISING, "btn2", NULL);
+    if (ret)
+        return ret;
 
     pr_info("project module loaded\n");
     return 0;
@@ -158,5 +163,5 @@ module_init(project_init);
 module_exit(project_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Your Name");
+MODULE_AUTHOR("Karan Raj Pradhan");
 MODULE_DESCRIPTION("LED PWM Speed Tracker Driver with Sysfs and HW Timer");
