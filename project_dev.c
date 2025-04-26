@@ -124,6 +124,22 @@ static enum hrtimer_restart led3_cb(struct hrtimer *timer)
     return HRTIMER_RESTART;
 }
 
+static void calculate_speed(void)
+{
+    uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
+    int count = 0;
+    int i;
+
+    for (i = 0; i < press_idx; i++) {
+        if (now_sec - press_times[i] <= 10)
+            count++;
+    }
+
+    speed = count;
+    sprintf(read_buf, "Button speed: %d\n", speed);
+    pr_info("Button speed: %d\n", speed);
+}
+
 static void record_press(void)
 {
     uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
@@ -138,6 +154,7 @@ static void record_press(void)
             press_times[i-1] = press_times[i];
         press_times[MAX_PRESSES-1] = now_sec;
     }
+    calculate_speed();
 }
 
 static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
@@ -162,6 +179,8 @@ static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
     last_btn2 = btn2;
 
     hrtimer_forward_now(timer, ktime_set(0, 1000000)); // 1 ms
+    //calculate_speed();
+
     return HRTIMER_RESTART;
 }
 
@@ -218,29 +237,15 @@ static void __exit chardev_exit(void)
     unregister_chrdev(major, DEVICE_NAME); 
 }
 
-static void calculate_speed(void)
-{
-    uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
-    int count = 0;
-    int i;
-
-    for (i = 0; i < press_idx; i++) {
-        if (now_sec - press_times[i] <= 10)
-            count++;
-    }
-
-    speed = count;
-    sprintf(read_buf, "Button speed: %d\n", speed);
-    pr_info("Button speed: %d\n", speed);
-}
-
 static int device_open(struct inode *inode, struct file *file)
 {
     if (atomic_cmpxchg(&already_open, CDEV_NOT_USED, CDEV_EXCLUSIVE_OPEN))
         return -EBUSY;
 
-    sprintf(read_buf, "Button speed: %d\n", speed);
-    pr_info("Button speed: %d\n", speed); 
+    //sprintf(read_buf, "Button speed: %d\n", speed);
+    //pr_info("Button speed: %d\n", speed); 
+
+    calculate_speed();
 
     try_module_get(THIS_MODULE);
 
@@ -259,6 +264,8 @@ static int device_release(struct inode *inode, struct file *file)
 static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
 {
     int bytes_read = 0;
+    //calculate_speed();
+
     const char *msg_ptr = read_buf;
 
     if (!*(msg_ptr + *offset)) {
