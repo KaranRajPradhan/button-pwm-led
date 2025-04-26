@@ -37,6 +37,8 @@
 #define GPIO_BTN1   5
 #define GPIO_BTN2   6
 
+#define MAX_PRESSES 100
+
 static struct hrtimer led1_timer, led2_timer, led3_timer;
 static struct hrtimer btn_poll_timer;
  
@@ -66,6 +68,8 @@ static atomic_t already_open = ATOMIC_INIT(CDEV_NOT_USED);
 static int speed = 0;
 static int last_btn1 = 1;
 static int last_btn2 = 1;
+static uint32_t press_times[MAX_PRESSES];
+static int press_idx = 0;
 
 static ktime_t led1_on, led1_off, led2_on, led2_off, led3_on, led3_off;
 static bool led1_state, led2_state, led3_state;
@@ -120,6 +124,22 @@ static enum hrtimer_restart led3_cb(struct hrtimer *timer)
     return HRTIMER_RESTART;
 }
 
+static void record_press(void)
+{
+    uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
+
+    if (press_idx < MAX_PRESSES) {
+        press_times[press_idx++] = now_sec;
+    }
+    else {
+        // Shift left if array full
+        int i;
+        for (i = 1; i < MAX_PRESSES; i++)
+            press_times[i-1] = press_times[i];
+        press_times[MAX_PRESSES-1] = now_sec;
+    }
+}
+
 static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
 {
     uint32_t gplev = readl(addr + (GPLEV_OFFSET / 4));
@@ -129,11 +149,13 @@ static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
     if (last_btn1 == 1 && btn1 == 0) {
         pr_info("BTN1 pressed\n");
         // handle button1 press
+        record_press();
     }
 
     if (last_btn2 == 1 && btn2 == 0) {
         pr_info("BTN2 pressed\n");
         // handle button2 press
+        record_press();
     }
 
     last_btn1 = btn1;
@@ -198,10 +220,17 @@ static void __exit chardev_exit(void)
 
 static void calculate_speed(void)
 {
-    // Calculate speed based on button press count and time
-    // This is a placeholder function. Actual implementation will depend on the specific requirements.
-    // speed = 0;
-    sprintf(read_buf, "Successful alternate button speed: %d!\n", speed); 
+    uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
+    int count = 0;
+    int i;
+
+    for (i = 0; i < press_idx; i++) {
+        if (now_sec - press_times[i] <= 10)
+            count++;
+    }
+
+    speed = count;
+    sprintf(read_buf, "Button speed (presses in last 10s): %d\n", speed);
 }
 
 static int device_open(struct inode *inode, struct file *file)
