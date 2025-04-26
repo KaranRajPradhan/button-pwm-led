@@ -20,6 +20,7 @@
 #define GPIO_BASE_ADDR  0xFE200000
 #define GPSET_OFFSET    0x1C
 #define GPCLR_OFFSET    0x28
+#define GPLEV_OFFSET	0x34
 
 #define BUF_LEN 124
 
