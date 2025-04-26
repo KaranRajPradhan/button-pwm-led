@@ -65,12 +65,11 @@ enum {
 
 static atomic_t already_open = ATOMIC_INIT(CDEV_NOT_USED);
 
-static int speed = 0;
 static int last_btn1 = 1;
 static int last_btn2 = 1;
 static int last_button_pressed = 0;  // 0 = none, 1 = BTN1, 2 = BTN2
-static uint32_t press_times[MAX_PRESSES];
-static int press_idx = 0;
+static uint32_t last_press_time = 0; // Time of last valid press
+static int speed = 0;                // Number of valid alternations in last 10s
 
 static ktime_t led1_on, led1_off, led2_on, led2_off, led3_on, led3_off;
 static bool led1_state, led2_state, led3_state;
@@ -125,65 +124,41 @@ static enum hrtimer_restart led3_cb(struct hrtimer *timer)
     return HRTIMER_RESTART;
 }
 
-static void calculate_speed(void)
-{
-    uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
-    int count = 0;
-    int i;
-
-    for (i = 0; i < press_idx; i++) {
-        if (now_sec - press_times[i] <= 10)
-            count++;
-    }
-
-    speed = count;
-    sprintf(read_buf, "Button speed: %d\n", speed);
-    pr_info("Button speed: %d\n", speed);
-}
-
-static void record_press(void)
-{
-    uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
-
-    if (press_idx < MAX_PRESSES) {
-        press_times[press_idx++] = now_sec;
-    }
-    else {
-        // Shift left if array full
-        int i;
-        for (i = 1; i < MAX_PRESSES; i++)
-            press_times[i-1] = press_times[i];
-        press_times[MAX_PRESSES-1] = now_sec;
-    }
-    calculate_speed();
-}
-
 static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
 {
     uint32_t gplev = readl(addr + (GPLEV_OFFSET / 4));
     int btn1 = (gplev >> GPIO_BTN1) & 1;
     int btn2 = (gplev >> GPIO_BTN2) & 1;
+    uint32_t now_sec = (uint32_t)(ktime_get_real_seconds());
 
     if (last_btn1 == 1 && btn1 == 0) {
         pr_info("BTN1 pressed\n");
-        // handle button1 press
-        record_press();
-        last_button_pressed = 1;
+        if (last_button_pressed != 1) {
+            if (now_sec - last_press_time <= 10)
+                speed++;
+            else
+                speed = 1;  // reset if too much gap
+            last_press_time = now_sec;
+            last_button_pressed = 1;
+        }
     }
 
     if (last_btn2 == 1 && btn2 == 0) {
         pr_info("BTN2 pressed\n");
-        // handle button2 press
-        record_press();
-        last_button_pressed = 2;
+        if (last_button_pressed != 2) {
+            if (now_sec - last_press_time <= 10)
+                speed++;
+            else
+                speed = 1;
+            last_press_time = now_sec;
+            last_button_pressed = 2;
+        }
     }
 
     last_btn1 = btn1;
     last_btn2 = btn2;
 
-    hrtimer_forward_now(timer, ktime_set(0, 1000000)); // 1 ms
-    //calculate_speed();
-
+    hrtimer_forward_now(timer, ktime_set(0, 1000000)); // 1ms
     return HRTIMER_RESTART;
 }
 
@@ -248,7 +223,7 @@ static int device_open(struct inode *inode, struct file *file)
     //sprintf(read_buf, "Button speed: %d\n", speed);
     //pr_info("Button speed: %d\n", speed); 
 
-    calculate_speed();
+    // calculate_speed();
 
     try_module_get(THIS_MODULE);
 
@@ -264,27 +239,16 @@ static int device_release(struct inode *inode, struct file *file)
     return SUCCESS; 
 }
 
-static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
+static ssize_t device_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
 {
-    int bytes_read = 0;
-    //calculate_speed();
+    ssize_t bytes_read = 0;
+    sprintf(read_buf, "%d\n", speed);
 
-    const char *msg_ptr = read_buf;
-
-    if (!*(msg_ptr + *offset)) {
-        *offset = 0;
-        return 0;
-    }
-
-    msg_ptr += *offset;
-
-    while (length && *msg_ptr) {
-        put_user(*(msg_ptr++), buffer++);
+    while (length && *read_buf) {
+        put_user(*(read_buf++), buffer++);
         length--;
         bytes_read++;
     }
-
-    *offset += bytes_read;
 
     return bytes_read;
 }
