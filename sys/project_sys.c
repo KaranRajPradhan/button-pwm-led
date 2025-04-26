@@ -235,9 +235,9 @@ static ssize_t led2_store(struct kobject *kobj, struct kobj_attribute *attr, con
         default:  pr_info("device_write: invalid duty '%d'; only supports 0, 25, 50, 75, 100!\n", duty); return -EINVAL;
     }
 
-    hrtimer_cancel(&led1_timer);
+    hrtimer_cancel(&led2_timer);
     led1_state=false;
-    hrtimer_start(&led1_timer, ktime_set(0,0), HRTIMER_MODE_REL);
+    hrtimer_start(&led2_timer, ktime_set(0,0), HRTIMER_MODE_REL);
 
     return count;
 }
@@ -262,9 +262,9 @@ static ssize_t led3_store(struct kobject *kobj, struct kobj_attribute *attr, con
         default:  pr_info("device_write: invalid duty '%d'; only supports 0, 25, 50, 75, 100!\n", duty); return -EINVAL;
     }
 
-    hrtimer_cancel(&led1_timer);
+    hrtimer_cancel(&led3_timer);
     led1_state=false;
-    hrtimer_start(&led1_timer, ktime_set(0,0), HRTIMER_MODE_REL);
+    hrtimer_start(&led3_timer, ktime_set(0,0), HRTIMER_MODE_REL);
 
     return count;
 }
