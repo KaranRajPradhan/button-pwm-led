@@ -72,7 +72,7 @@ static int speed = 0;                // Number of valid alternations in last 10s
 typedef struct {
     uint32_t timestamp;
     int button_id;
-} button_event_t
+} button_event_t;
 static button_event_t press_events[MAX_PRESSES];
 static int press_idx = 0;
 
@@ -154,7 +154,7 @@ static void calculate_speed(void)
     int last_button = 0;
 
     // Purge old events
-    int start_idx = 0;
+    int start_idx = press_idx;
     for (i = 0; i < press_idx; i++) {
         if (now_sec - press_events[i].timestamp <= 10) {
             start_idx = i;
@@ -162,13 +162,15 @@ static void calculate_speed(void)
         }
     }
 
-    if (start_idx > 0) {
+    if (start_idx != 0 && start_idx < press_idx) {
         int new_idx = 0;
         for (i = start_idx; i < press_idx; i++) {
             press_events[new_idx++] = press_events[i];
         }
         press_idx = new_idx;
     }
+    else if (start_idx == press_idx)
+        press_idx = 0;
 
     // Count valid alternating presses
     for (i = 0; i < press_idx; i++) {
