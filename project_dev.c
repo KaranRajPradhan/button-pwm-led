@@ -221,8 +221,8 @@ static int device_open(struct inode *inode, struct file *file)
         return -EBUSY;
 
     //sprintf(read_buf, "Button speed: %d\n", speed);
-    //pr_info("Button speed: %d\n", speed); 
-
+    pr_info("Button speed: %d\n", speed);
+    sprintf(read_buf, "%d\n", speed);
     // calculate_speed();
 
     try_module_get(THIS_MODULE);
@@ -239,16 +239,41 @@ static int device_release(struct inode *inode, struct file *file)
     return SUCCESS; 
 }
 
-static ssize_t device_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
-{
-    ssize_t bytes_read = 0;
-    sprintf(read_buf, "%d\n", speed);
+// static ssize_t device_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
+// {
+//     ssize_t bytes_read = 0;
+//     sprintf(read_buf, "%d\n", speed);
 
-    while (length && *read_buf) {
-        put_user(*(read_buf++), buffer++);
+//     while (length && *read_buf) {
+//         put_user(*(read_buf++), buffer++);
+//         length--;
+//         bytes_read++;
+//     }
+
+//     return bytes_read;
+// }
+
+static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
+{
+    int bytes_read = 0;
+    //calculate_speed();
+    sprintf(read_buf, "%d\n", speed);
+    const char *msg_ptr = read_buf;
+
+    if (!*(msg_ptr + *offset)) {
+        *offset = 0;
+        return 0;
+    }
+
+    msg_ptr += *offset;
+
+    while (length && *msg_ptr) {
+        put_user(*(msg_ptr++), buffer++);
         length--;
         bytes_read++;
     }
+
+    *offset += bytes_read;
 
     return bytes_read;
 }
