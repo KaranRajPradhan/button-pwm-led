@@ -193,7 +193,6 @@ static struct kobj_attribute speed_attr = __ATTR(speed, 0660, speed_show, NULL);
 static ssize_t led1_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     int duty;
-    ktime_t on, off;
 
     if (sscanf(buf, "%d", &duty) != 1) {
         pr_info("device_write: bad format '%s'\n", buf);
@@ -201,11 +200,11 @@ static ssize_t led1_store(struct kobject *kobj, struct kobj_attribute *attr, con
     }
 
     switch (duty) {
-        case 0:   pr_info("got duty 0\n"); on = ktime_set(0, TIME_0);   off = ktime_set(0, TIME_100); break;
-        case 25:  pr_info("got duty 25\n"); on = ktime_set(0, TIME_25);  off = ktime_set(0, TIME_75); break;
-        case 50:  pr_info("got duty 50\n"); on = ktime_set(0, TIME_50);  off = ktime_set(0, TIME_50); break;
-        case 75:  pr_info("got duty 75\n"); on = ktime_set(0, TIME_75);  off = ktime_set(0, TIME_25); break;
-        case 100: pr_info("got duty 100\n"); on = ktime_set(0, TIME_100); off = ktime_set(0,   TIME_0); break;
+        case 0:   pr_info("got duty 0\n"); led1_on = ktime_set(0, TIME_0);   led1_off = ktime_set(0, TIME_100); break;
+        case 25:  pr_info("got duty 25\n"); led1_on = ktime_set(0, TIME_25);  led1_off = ktime_set(0, TIME_75); break;
+        case 50:  pr_info("got duty 50\n"); led1_on = ktime_set(0, TIME_50);  led1_off = ktime_set(0, TIME_50); break;
+        case 75:  pr_info("got duty 75\n"); led1_on = ktime_set(0, TIME_75);  led1_off = ktime_set(0, TIME_25); break;
+        case 100: pr_info("got duty 100\n"); led1_on = ktime_set(0, TIME_100); led1_off = ktime_set(0,   TIME_0); break;
         default:  pr_info("device_write: invalid duty '%d'; only supports 0, 25, 50, 75, 100!\n", duty); return -EINVAL;
     }
 
