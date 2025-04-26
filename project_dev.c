@@ -68,6 +68,7 @@ static atomic_t already_open = ATOMIC_INIT(CDEV_NOT_USED);
 static int speed = 0;
 static int last_btn1 = 1;
 static int last_btn2 = 1;
+static int last_button_pressed = 0;  // 0 = none, 1 = BTN1, 2 = BTN2
 static uint32_t press_times[MAX_PRESSES];
 static int press_idx = 0;
 
@@ -167,12 +168,14 @@ static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
         pr_info("BTN1 pressed\n");
         // handle button1 press
         record_press();
+        last_button_pressed = 1;
     }
 
     if (last_btn2 == 1 && btn2 == 0) {
         pr_info("BTN2 pressed\n");
         // handle button2 press
         record_press();
+        last_button_pressed = 2;
     }
 
     last_btn1 = btn1;
