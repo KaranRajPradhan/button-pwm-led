@@ -76,22 +76,32 @@ static void init_led_gpios(void)
     /* GPFSEL0: GPIO2 output (bits 6-8 = 001) */
     writel((1 << 6), addr);
     /* GPFSEL1: GPIO17 output (bits 21-23 = 001) */
-    writel((1 << 21), addr + 1);
+    writel((1 << 21), addr + 0x04);
     /* GPFSEL2: GPIO27 output (bits 21-23 = 001) */
-    writel((1 << 21), addr + 2);
+    writel((1 << 21), addr + 0x08);
     // /* Keep gpio_base for later set/clr via offsets */
     // gpio_base = ioremap(GPIO_BASE_PHYS, GPIO_LEN);
 }
 
 static enum hrtimer_restart led1_cb(struct hrtimer *timer)
 {
+    //pr_info("in led1_cb: led1_state=%d\n", led1_state);
     void __iomem *set = addr + GPSET_OFFSET;
     void __iomem *clr = addr + GPCLR_OFFSET;
 
     led1_state = !led1_state;
-    writel(1 << GPIO_LED1, led1_state ? set : clr);
+    writel((1<<GPIO_LED1), led1_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led1_timer, led1_state ? led1_on : led1_off);
-
+    //if(led1_state) {
+      //  writel((1<<GPIO_LED1) , addr+7);
+        ////hrtimer_forward_now(&led1_timer, ktime_set(0,500000));
+        //hrtimer_forward_now(&led1_timer, led1_on);
+    //}
+    //else {
+      //  writel((1<<GPIO_LED1) , addr+10);
+       // //hrtimer_forward_now(&led1_timer, ktime_set(0,1500000));
+       // hrtimer_forward_now(&led1_timer, led1_off);
+    //}
     return HRTIMER_RESTART;
 }
 
@@ -101,7 +111,7 @@ static enum hrtimer_restart led2_cb(struct hrtimer *timer)
     void __iomem *clr = addr + GPCLR_OFFSET;
 
     led2_state = !led2_state;
-    writel(1 << GPIO_LED2, led2_state ? set : clr);
+    writel(1 << GPIO_LED2, led2_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led2_timer, led2_state ? led2_on : led2_off);
 
     return HRTIMER_RESTART;
@@ -113,7 +123,7 @@ static enum hrtimer_restart led3_cb(struct hrtimer *timer)
     void __iomem *clr = addr + GPCLR_OFFSET;
     
     led3_state = !led3_state;
-    writel(1 << GPIO_LED3, led3_state ? set : clr);
+    writel(1 << GPIO_LED3, led3_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led3_timer, led3_state ? led3_on : led3_off);
 
     return HRTIMER_RESTART;
@@ -235,7 +245,7 @@ static ssize_t device_write(struct file *filp, const char __user *buffer, size_t
         }
     }
     write_buf[length] = '\0';
-
+    pr_info("A\n");
     if (sscanf(write_buf, "%d %d", &led, &duty) != 2) {
         pr_info("device_write: bad format '%s'\n", write_buf);
         return -EINVAL;
@@ -248,20 +258,21 @@ static ssize_t device_write(struct file *filp, const char __user *buffer, size_t
 
      /* Select on-time based on duty */
     switch (duty) {
-        case 0:   on = ktime_set(0, TIME_0);   off = ktime_set(0, TIME_100); break;
-        case 25:  on = ktime_set(0, TIME_25);  off = ktime_set(0, TIME_75); break;
-        case 50:  on = ktime_set(0, TIME_50);  off = ktime_set(0, TIME_50); break;
-        case 75:  on = ktime_set(0, TIME_75);  off = ktime_set(0, TIME_25); break;
-        case 100: on = ktime_set(0, TIME_100); off = ktime_set(0,   TIME_0); break;
+        case 0:   pr_info("got duty 0\n"); on = ktime_set(0, TIME_0);   off = ktime_set(0, TIME_100); break;
+        case 25:  pr_info("got duty 25\n"); on = ktime_set(0, TIME_25);  off = ktime_set(0, TIME_75); break;
+        case 50:  pr_info("got duty 50\n"); on = ktime_set(0, TIME_50);  off = ktime_set(0, TIME_50); break;
+        case 75:  pr_info("got duty 75\n"); on = ktime_set(0, TIME_75);  off = ktime_set(0, TIME_25); break;
+        case 100: pr_info("got duty 100\n"); on = ktime_set(0, TIME_100); off = ktime_set(0,   TIME_0); break;
         default:  pr_info("device_write: invalid duty '%d'; only supports 0, 25, 50, 75, 100!\n", duty); return -EINVAL;
     }
-
+    pr_info("B\n");
     switch (led) {
-    case 1:  led1_on=on; led1_off=off; hrtimer_cancel(&led1_timer); led1_state=false; hrtimer_start(&led1_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
-    case 2:  led2_on=on; led2_off=off; hrtimer_cancel(&led2_timer); led2_state=false; hrtimer_start(&led2_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
-    case 3:  led3_on=on; led3_off=off; hrtimer_cancel(&led3_timer); led3_state=false; hrtimer_start(&led3_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
+    case 1:  pr_info("led1\n"); led1_on=on; led1_off=off; hrtimer_cancel(&led1_timer); led1_state=false; hrtimer_start(&led1_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
+    case 2:  pr_info("led2\n"); led2_on=on; led2_off=off; hrtimer_cancel(&led2_timer); led2_state=false; hrtimer_start(&led2_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
+    case 3:  pr_info("led3\n"); led3_on=on; led3_off=off; hrtimer_cancel(&led3_timer); led3_state=false; hrtimer_start(&led3_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
     default: pr_info("device_write: invalid LED number '%d'\n", led); return -EINVAL;
     }
+    pr_info("C\n");
 
     return length;
 }
