@@ -24,7 +24,7 @@
 #define BUF_LEN 124
 
 #define TIME_SEC    0
-#define TIME_100    2000000 // 2.0 ms
+#define TIME_100    2000000 // 2.0 ms Tim Period
 #define TIME_75     1500000
 #define TIME_50     1000000
 #define TIME_25     500000
@@ -32,7 +32,6 @@
 
 #define GPIO_LED1   2
 #define GPIO_LED2   17
-//#define GPIO_LED3   27
 #define GPIO_LED3   12
 #define GPIO_BTN1   5
 #define GPIO_BTN2   6
@@ -68,20 +67,16 @@ static ktime_t led1_on, led1_off, led2_on, led2_off, led3_on, led3_off;
 static bool led1_state, led2_state, led3_state;
 static char read_buf[BUF_LEN + 1];
 
-/* Initialize LED GPIOs as outputs using direct register writes */
 static void init_led_gpios(void)
 {
     addr = ioremap(GPIO_BASE_ADDR, 4*16);
     if (!addr)
         return;
-    /* GPFSEL0: GPIO2 output (bits 6-8 = 001) */
+    // GPFSEL0: GPIO2 output (bits 6-8 = 001)
     writel((1 << 6), addr);
-    /* GPFSEL1: GPIO17 output (bits 21-23 = 001) */
+    // GPFSEL1: GPIO17 output (bits 21-23 = 001)
+    // GPFSEL1: GPIO12 output (bits 6-8 = 001)
     writel(((1 << 21)|(1 << 6)), addr+1);
-    /* GPFSEL2: GPIO27 output (bits 21-23 = 001) */
-    //writel((1 << 21), addr+2);
-    // /* Keep gpio_base for later set/clr via offsets */
-    // gpio_base = ioremap(GPIO_BASE_PHYS, GPIO_LEN);
 }
 
 static enum hrtimer_restart led1_cb(struct hrtimer *timer)
@@ -93,16 +88,7 @@ static enum hrtimer_restart led1_cb(struct hrtimer *timer)
     led1_state = !led1_state;
     writel((1<<GPIO_LED1), led1_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led1_timer, led1_state ? led1_on : led1_off);
-    //if(led1_state) {
-      //  writel((1<<GPIO_LED1) , addr+7);
-        ////hrtimer_forward_now(&led1_timer, ktime_set(0,500000));
-        //hrtimer_forward_now(&led1_timer, led1_on);
-    //}
-    //else {
-      //  writel((1<<GPIO_LED1) , addr+10);
-       // //hrtimer_forward_now(&led1_timer, ktime_set(0,1500000));
-       // hrtimer_forward_now(&led1_timer, led1_off);
-    //}
+    
     return HRTIMER_RESTART;
 }
 
@@ -229,7 +215,7 @@ static ssize_t device_read(struct file *filp, char __user *buffer, size_t length
     return bytes_read;
 }
 
-/* write: "<led> <duty_percent>" */
+// write: "<led> <duty_percent>"
 static ssize_t device_write(struct file *filp, const char __user *buffer, size_t length, loff_t *offset)
 {
     char write_buf[BUF_LEN + 1] = {0};
@@ -251,13 +237,8 @@ static ssize_t device_write(struct file *filp, const char __user *buffer, size_t
         pr_info("device_write: bad format '%s'\n", write_buf);
         return -EINVAL;
     }
-    // if (led < 1 || led > 3)
-    //     pr_info("device_write: invalid LED number '%d'\n", led);
-    //     return -EINVAL;
 
-    // pr_info("device_write: led=%d, duty=%d\n", led, duty);
-
-     /* Select on-time based on duty */
+    // Select on and off time based on duty
     switch (duty) {
         case 0:   pr_info("got duty 0\n"); on = ktime_set(0, TIME_0);   off = ktime_set(0, TIME_100); break;
         case 25:  pr_info("got duty 25\n"); on = ktime_set(0, TIME_25);  off = ktime_set(0, TIME_75); break;
