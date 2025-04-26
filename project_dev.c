@@ -37,6 +37,7 @@
 #define GPIO_BTN2   6
 
 static struct hrtimer led1_timer, led2_timer, led3_timer;
+static struct hrtimer btn_poll_timer;
  
 static int device_open(struct inode *, struct file *); 
 static int device_release(struct inode *, struct file *); 
@@ -62,6 +63,8 @@ enum {
 static atomic_t already_open = ATOMIC_INIT(CDEV_NOT_USED);
 
 static int speed = 0;
+static int last_btn1 = 1;
+static int last_btn2 = 1;
 
 static ktime_t led1_on, led1_off, led2_on, led2_off, led3_on, led3_off;
 static bool led1_state, led2_state, led3_state;
@@ -116,6 +119,29 @@ static enum hrtimer_restart led3_cb(struct hrtimer *timer)
     return HRTIMER_RESTART;
 }
 
+static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
+{
+    uint32_t gplev = readl(addr + (GPLEV_OFFSET / 4));
+    int btn1 = (gplev >> GPIO_BTN1) & 1;
+    int btn2 = (gplev >> GPIO_BTN2) & 1;
+
+    if (last_btn1 == 1 && btn1 == 0) {
+        pr_info("BTN1 pressed\n");
+        // handle button1 press
+    }
+
+    if (last_btn2 == 1 && btn2 == 0) {
+        pr_info("BTN2 pressed\n");
+        // handle button2 press
+    }
+
+    last_btn1 = btn1;
+    last_btn2 = btn2;
+
+    hrtimer_forward_now(timer, ktime_set(0, 1000000)); // 1 ms
+    return HRTIMER_RESTART;
+}
+
 static int __init chardev_init(void)
 {
     major = register_chrdev(0, DEVICE_NAME, &chardev_fops);
@@ -146,6 +172,11 @@ static int __init chardev_init(void)
     led2_timer.function = &led2_cb;
     led3_timer.function = &led3_cb;
 
+    pr_info("Initing button poll timer...\n");
+    hrtimer_init(&btn_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    btn_poll_timer.function = btn_poll_cb;
+    hrtimer_start(&btn_poll_timer, ktime_set(0, 1000000), HRTIMER_MODE_REL); // 1ms
+
     pr_info("Device created on /dev/%s\n", DEVICE_NAME);
 
     return SUCCESS;
@@ -156,6 +187,7 @@ static void __exit chardev_exit(void)
     hrtimer_cancel(&led1_timer);
     hrtimer_cancel(&led2_timer);
     hrtimer_cancel(&led3_timer);
+    hrtimer_cancel(&btn_poll_timer);
 
     device_destroy(cls, MKDEV(major, 0)); 
     class_destroy(cls); 
