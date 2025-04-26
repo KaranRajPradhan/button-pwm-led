@@ -219,7 +219,25 @@ static struct kobj_attribute led1_attr = __ATTR(led1, 0660, NULL, led1_store);
 
 static ssize_t led2_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    
+    int duty;
+
+    if (sscanf(buf, "%d", &duty) != 1) {
+        pr_info("device_write: bad format '%s'\n", buf);
+        return -EINVAL;
+    }
+
+    switch (duty) {
+        case 0:   pr_info("got duty 0\n"); led2_on = ktime_set(0, TIME_0);   led2_off = ktime_set(0, TIME_100); break;
+        case 25:  pr_info("got duty 25\n"); led2_on = ktime_set(0, TIME_25);  led2_off = ktime_set(0, TIME_75); break;
+        case 50:  pr_info("got duty 50\n"); led2_on = ktime_set(0, TIME_50);  led2_off = ktime_set(0, TIME_50); break;
+        case 75:  pr_info("got duty 75\n"); led2_on = ktime_set(0, TIME_75);  led2_off = ktime_set(0, TIME_25); break;
+        case 100: pr_info("got duty 100\n"); led2_on = ktime_set(0, TIME_100); led2_off = ktime_set(0,   TIME_0); break;
+        default:  pr_info("device_write: invalid duty '%d'; only supports 0, 25, 50, 75, 100!\n", duty); return -EINVAL;
+    }
+
+    hrtimer_cancel(&led1_timer);
+    led1_state=false;
+    hrtimer_start(&led1_timer, ktime_set(0,0), HRTIMER_MODE_REL);
 
     return count;
 }
@@ -228,7 +246,25 @@ static struct kobj_attribute led2_attr = __ATTR(led2, 0660, NULL, led2_store);
 
 static ssize_t led3_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    
+    int duty;
+
+    if (sscanf(buf, "%d", &duty) != 1) {
+        pr_info("device_write: bad format '%s'\n", buf);
+        return -EINVAL;
+    }
+
+    switch (duty) {
+        case 0:   pr_info("got duty 0\n"); led3_on = ktime_set(0, TIME_0);   led3_off = ktime_set(0, TIME_100); break;
+        case 25:  pr_info("got duty 25\n"); led3_on = ktime_set(0, TIME_25);  led3_off = ktime_set(0, TIME_75); break;
+        case 50:  pr_info("got duty 50\n"); led3_on = ktime_set(0, TIME_50);  led3_off = ktime_set(0, TIME_50); break;
+        case 75:  pr_info("got duty 75\n"); led3_on = ktime_set(0, TIME_75);  led3_off = ktime_set(0, TIME_25); break;
+        case 100: pr_info("got duty 100\n"); led3_on = ktime_set(0, TIME_100); led3_off = ktime_set(0,   TIME_0); break;
+        default:  pr_info("device_write: invalid duty '%d'; only supports 0, 25, 50, 75, 100!\n", duty); return -EINVAL;
+    }
+
+    hrtimer_cancel(&led1_timer);
+    led1_state=false;
+    hrtimer_start(&led1_timer, ktime_set(0,0), HRTIMER_MODE_REL);
 
     return count;
 }
