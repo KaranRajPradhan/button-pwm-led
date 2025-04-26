@@ -23,10 +23,12 @@
 #define GPIO_BTN1 5
 #define GPIO_BTN2 6
 
-#define TIME_25 500000
-#define TIME_50 1000000
-#define TIME_75 1500000
-#define TIME_100 2000000
+#define TIME_SEC    0
+#define TIME_100    2000000 // 2.0 ms Tim Period
+#define TIME_75     1500000
+#define TIME_50     1000000
+#define TIME_25     500000
+#define TIME_0      0
 
 #define MAX_PRESSES 100
 
