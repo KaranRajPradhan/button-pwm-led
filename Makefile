@@ -1,4 +1,4 @@
-obj-m += project.o
+obj-m += project_dev.o
 
 PWD := $(CURDIR)
 

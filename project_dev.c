@@ -16,6 +16,12 @@
 #include <linux/err.h>
 
 #define DEVICE_NAME "project_dev"
+#define SUCCESS 0
+#define GPIO_BASE_ADDR  0xFE200000
+#define GPSET_OFFSET    0x1C
+#define GPCLR_OFFSET    0x28
+
+#define BUF_LEN 124
 
 #define TIME_SEC    0
 #define TIME_100    2000000 // 2.0 ms
@@ -29,10 +35,6 @@
 #define GPIO_LED3   27
 #define GPIO_BTN1   5
 #define GPIO_BTN2   6
-
-#define GPIO_BASE_ADDR  0xFE200000
-
-#define BUF_LEN 124
 
 static struct hrtimer led1_timer, led2_timer, led3_timer;
  
@@ -83,8 +85,11 @@ static void init_led_gpios(void)
 
 static enum hrtimer_restart led1_cb(struct hrtimer *timer)
 {
+    void __iomem *set = GPIO_BASE_ADDR + GPSET_OFFSET;
+    void __iomem *clr = GPIO_BASE_ADDR + GPCLR_OFFSET;
+
     led1_state = !led1_state;
-    writel(1 << GPIO_LED1, led1_state ? GPIO_BASE_ADDR + 0x1C : GPIO_BASE_ADDR + 0x28);
+    writel(1 << GPIO_LED1, led1_state ? set : clr);
     hrtimer_forward_now(&led1_timer, led1_state ? led1_on : led1_off);
 
     return HRTIMER_RESTART;
@@ -92,8 +97,11 @@ static enum hrtimer_restart led1_cb(struct hrtimer *timer)
 
 static enum hrtimer_restart led2_cb(struct hrtimer *timer)
 {
+    void __iomem *set = GPIO_BASE_ADDR + GPSET_OFFSET;
+    void __iomem *clr = GPIO_BASE_ADDR + GPCLR_OFFSET;
+
     led2_state = !led2_state;
-    writel(1 << GPIO_LED2, led2_state ? GPIO_BASE_ADDR + 0x1C : GPIO_BASE_ADDR + 0x28);
+    writel(1 << GPIO_LED2, led2_state ? set : clr);
     hrtimer_forward_now(&led2_timer, led2_state ? led2_on : led2_off);
 
     return HRTIMER_RESTART;
@@ -101,8 +109,11 @@ static enum hrtimer_restart led2_cb(struct hrtimer *timer)
 
 static enum hrtimer_restart led3_cb(struct hrtimer *timer)
 {
+    void __iomem *set = GPIO_BASE_ADDR + GPSET_OFFSET;
+    void __iomem *clr = GPIO_BASE_ADDR + GPCLR_OFFSET;
+    
     led3_state = !led3_state;
-    writel(1 << GPIO_LED3, led3_state ? GPIO_BASE_ADDR + 0x1C : GPIO_BASE_ADDR + 0x28);
+    writel(1 << GPIO_LED3, led3_state ? set : clr);
     hrtimer_forward_now(&led3_timer, led3_state ? led3_on : led3_off);
 
     return HRTIMER_RESTART;
@@ -218,9 +229,10 @@ static ssize_t device_write(struct file *filp, const char __user *buffer, size_t
     pr_info("device_write(%p, %p, %zu)\n", filp, buffer, length);
 
     for (i = 0; i < length; i++) {
-        if (get_user(write_buf[i], buffer + i))
+        if (get_user(write_buf[i], buffer + i)) {
             pr_info("Error getting user-space message!\n");
             return -EFAULT;
+        }
     }
     write_buf[length] = '\0';
 
