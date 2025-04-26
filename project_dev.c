@@ -1,0 +1,262 @@
+#include <linux/atomic.h> 
+#include <linux/cdev.h> 
+#include <linux/delay.h> 
+#include <linux/device.h> 
+#include <linux/fs.h> 
+#include <linux/init.h> 
+#include <linux/kernel.h>
+#include <linux/module.h> 
+#include <linux/printk.h> 
+#include <linux/types.h> 
+#include <linux/uaccess.h>
+#include <linux/version.h> 
+#include <linux/io.h>
+#include <linux/hrtimer.h>
+#include <linux/ktime.h>
+#include <linux/err.h>
+
+#define DEVICE_NAME "project_dev"
+
+#define TIME_SEC    0
+#define TIME_100    2000000 // 2.0 ms
+#define TIME_75     1500000
+#define TIME_50     1000000
+#define TIME_25     500000
+#define TIME_0      0
+
+#define GPIO_LED1   2
+#define GPIO_LED2   17
+#define GPIO_LED3   27
+#define GPIO_BTN1   5
+#define GPIO_BTN2   6
+
+#define GPIO_BASE_ADDR  0xFE200000
+
+#define BUF_LEN 124
+
+static struct hrtimer led1_timer, led2_timer, led3_timer;
+ 
+static int device_open(struct inode *, struct file *); 
+static int device_release(struct inode *, struct file *); 
+static ssize_t device_read(struct file *, char __user *, size_t, loff_t *); 
+static ssize_t device_write(struct file *, const char __user *, size_t, loff_t *); 
+
+static struct class *cls; 
+static int major;
+static uint32_t* addr = NULL;
+
+static struct file_operations chardev_fops = { 
+    .read = device_read, 
+    .write = device_write, 
+    .open = device_open, 
+    .release = device_release, 
+};
+
+enum {
+    CDEV_NOT_USED,
+    CDEV_EXCLUSIVE_OPEN,
+};
+
+static atomic_t already_open = ATOMIC_INIT(CDEV_NOT_USED);
+
+static int speed = 0;
+
+static ktime_t led1_on, led1_off, led2_on, led2_off, led3_on, led3_off;
+static bool led1_state, led2_state, led3_state;
+static char read_buf[BUF_LEN + 1];
+
+/* Initialize LED GPIOs as outputs using direct register writes */
+static void init_led_gpios(void)
+{
+    addr = ioremap(GPIO_BASE_ADDR, 4*16);
+    if (!addr)
+        return;
+    /* GPFSEL0: GPIO2 output (bits 6-8 = 001) */
+    writel((1 << 6), addr);
+    /* GPFSEL1: GPIO17 output (bits 21-23 = 001) */
+    writel((1 << 21), addr + 1);
+    /* GPFSEL2: GPIO27 output (bits 21-23 = 001) */
+    writel((1 << 21), addr + 2);
+    // /* Keep gpio_base for later set/clr via offsets */
+    // gpio_base = ioremap(GPIO_BASE_PHYS, GPIO_LEN);
+}
+
+static enum hrtimer_restart led1_cb(struct hrtimer *timer)
+{
+    led1_state = !led1_state;
+    writel(1 << GPIO_LED1, led1_state ? GPIO_BASE_ADDR + 0x1C : GPIO_BASE_ADDR + 0x28);
+    hrtimer_forward_now(&led1_timer, led1_state ? led1_on : led1_off);
+
+    return HRTIMER_RESTART;
+}
+
+static enum hrtimer_restart led2_cb(struct hrtimer *timer)
+{
+    led2_state = !led2_state;
+    writel(1 << GPIO_LED2, led2_state ? GPIO_BASE_ADDR + 0x1C : GPIO_BASE_ADDR + 0x28);
+    hrtimer_forward_now(&led2_timer, led2_state ? led2_on : led2_off);
+
+    return HRTIMER_RESTART;
+}
+
+static enum hrtimer_restart led3_cb(struct hrtimer *timer)
+{
+    led3_state = !led3_state;
+    writel(1 << GPIO_LED3, led3_state ? GPIO_BASE_ADDR + 0x1C : GPIO_BASE_ADDR + 0x28);
+    hrtimer_forward_now(&led3_timer, led3_state ? led3_on : led3_off);
+
+    return HRTIMER_RESTART;
+}
+
+static int __init chardev_init(void)
+{
+    major = register_chrdev(0, DEVICE_NAME, &chardev_fops);
+
+    if (major < 0) {
+        pr_alert("Registering char device failed with %d\n", major);
+        return major;
+    }
+
+    pr_info("Major number assigned: %d\n", major);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
+    cls = class_create(DEVICE_NAME);
+#else
+    cls = class_create(THIS_MODULE, DEVICE_NAME);
+#endif
+
+    device_create(cls, NULL, MKDEV(major, 0), NULL, DEVICE_NAME);
+
+    pr_info("Initing LED GPIOs...\n");
+    init_led_gpios();
+
+    pr_info("Initing LED timers...\n");
+    hrtimer_init(&led1_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    hrtimer_init(&led2_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    hrtimer_init(&led3_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    led1_timer.function = &led1_cb;
+    led2_timer.function = &led2_cb;
+    led3_timer.function = &led3_cb;
+
+    pr_info("Device created on /dev/%s\n", DEVICE_NAME);
+
+    return SUCCESS;
+}
+
+static void __exit chardev_exit(void) 
+{
+    hrtimer_cancel(&led1_timer);
+    hrtimer_cancel(&led2_timer);
+    hrtimer_cancel(&led3_timer);
+
+    device_destroy(cls, MKDEV(major, 0)); 
+    class_destroy(cls); 
+ 
+    unregister_chrdev(major, DEVICE_NAME); 
+}
+
+static void calculate_speed(void)
+{
+    // Calculate speed based on button press count and time
+    // This is a placeholder function. Actual implementation will depend on the specific requirements.
+    // speed = 0;
+    sprintf(read_buf, "Successful alternate button speed: %d!\n", speed); 
+}
+
+static int device_open(struct inode *inode, struct file *file)
+{
+    if (atomic_cmpxchg(&already_open, CDEV_NOT_USED, CDEV_EXCLUSIVE_OPEN))
+        return -EBUSY;
+
+    // sprintf(read_buf, "Successful alternate button speed: %d!\n", speed); 
+
+    try_module_get(THIS_MODULE);
+
+    return SUCCESS;
+}
+
+static int device_release(struct inode *inode, struct file *file) 
+{ 
+    atomic_set(&already_open, CDEV_NOT_USED); 
+ 
+    module_put(THIS_MODULE); 
+ 
+    return SUCCESS; 
+}
+
+static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
+{
+    int bytes_read = 0;
+    const char *msg_ptr = read_buf;
+
+    if (!*(msg_ptr + *offset)) {
+        *offset = 0;
+        return 0;
+    }
+
+    msg_ptr += *offset;
+
+    while (length && *msg_ptr) {
+        put_user(*(msg_ptr++), buffer++);
+        length--;
+        bytes_read++;
+    }
+
+    *offset += bytes_read;
+
+    return bytes_read;
+}
+
+/* write: "<led> <duty_percent>" */
+static ssize_t device_write(struct file *filp, const char __user *buffer, size_t length, loff_t *offset)
+{
+    char write_buf[BUF_LEN + 1] = {0};
+    int led, duty;
+    int i;
+    ktime_t on, off;
+
+    pr_info("device_write(%p, %p, %zu)\n", filp, buffer, length);
+
+    for (i = 0; i < length; i++) {
+        if (get_user(write_buf[i], buffer + i))
+            pr_info("Error getting user-space message!\n");
+            return -EFAULT;
+    }
+    write_buf[length] = '\0';
+
+    if (sscanf(write_buf, "%d %d", &led, &duty) != 2) {
+        pr_info("device_write: bad format '%s'\n", write_buf);
+        return -EINVAL;
+    }
+    // if (led < 1 || led > 3)
+    //     pr_info("device_write: invalid LED number '%d'\n", led);
+    //     return -EINVAL;
+
+    // pr_info("device_write: led=%d, duty=%d\n", led, duty);
+
+     /* Select on-time based on duty */
+    switch (duty) {
+        case 0:   on = ktime_set(0, TIME_0);   off = ktime_set(0, TIME_100); break;
+        case 25:  on = ktime_set(0, TIME_25);  off = ktime_set(0, TIME_75); break;
+        case 50:  on = ktime_set(0, TIME_50);  off = ktime_set(0, TIME_50); break;
+        case 75:  on = ktime_set(0, TIME_75);  off = ktime_set(0, TIME_25); break;
+        case 100: on = ktime_set(0, TIME_100); off = ktime_set(0,   TIME_0); break;
+        default:  pr_info("device_write: invalid duty '%d'; only supports 0, 25, 50, 75, 100!\n", duty); return -EINVAL;
+    }
+
+    switch (led) {
+    case 1:  led1_on=on; led1_off=off; hrtimer_cancel(&led1_timer); led1_state=false; hrtimer_start(&led1_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
+    case 2:  led2_on=on; led2_off=off; hrtimer_cancel(&led2_timer); led2_state=false; hrtimer_start(&led2_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
+    case 3:  led3_on=on; led3_off=off; hrtimer_cancel(&led3_timer); led3_state=false; hrtimer_start(&led3_timer, ktime_set(0,0), HRTIMER_MODE_REL); break;
+    default: pr_info("device_write: invalid LED number '%d'\n", led); return -EINVAL;
+    }
+
+    return length;
+}
+
+
+//BOTTOM
+module_init(chardev_init); 
+module_exit(chardev_exit); 
+ 
+MODULE_LICENSE("GPL");
