@@ -170,6 +170,10 @@ static ssize_t led1_store(struct kobject *kobj, struct kobj_attribute *attr, con
 {
     sscanf(buf, "%d", &led1_duty);
     pr_info("LED1 duty updated to %d\n", led1_duty);
+
+    hrtimer_cancel(&led1_timer);
+    hrtimer_start(&led1_timer, ktime_set(0, led1_duty * 1000), HRTIMER_MODE_REL);
+
     return count;
 }
 
@@ -179,6 +183,10 @@ static ssize_t led2_store(struct kobject *kobj, struct kobj_attribute *attr, con
 {
     sscanf(buf, "%d", &led2_duty);
     pr_info("LED2 duty updated to %d\n", led2_duty);
+
+    hrtimer_cancel(&led2_timer);
+    hrtimer_start(&led2_timer, ktime_set(0, led2_duty * 1000), HRTIMER_MODE_REL);
+
     return count;
 }
 
@@ -188,6 +196,10 @@ static ssize_t led3_store(struct kobject *kobj, struct kobj_attribute *attr, con
 {
     sscanf(buf, "%d", &led3_duty);
     pr_info("LED3 duty updated to %d\n", led3_duty);
+
+    hrtimer_cancel(&led3_timer);
+    hrtimer_start(&led3_timer, ktime_set(0, led3_duty * 1000), HRTIMER_MODE_REL);
+
     return count;
 }
 
