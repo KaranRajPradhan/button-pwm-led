@@ -230,7 +230,8 @@ static void calculate_speed(void)
     }
 
     speed = count;
-    sprintf(read_buf, "Button speed (presses in last 10s): %d\n", speed);
+    sprintf(read_buf, "Button speed: %d\n", speed);
+    pr_info("Button speed: %d\n", speed);
 }
 
 static int device_open(struct inode *inode, struct file *file)
@@ -238,7 +239,8 @@ static int device_open(struct inode *inode, struct file *file)
     if (atomic_cmpxchg(&already_open, CDEV_NOT_USED, CDEV_EXCLUSIVE_OPEN))
         return -EBUSY;
 
-    // sprintf(read_buf, "Successful alternate button speed: %d!\n", speed); 
+    sprintf(read_buf, "Button speed: %d\n", speed);
+    pr_info("Button speed: %d\n", speed); 
 
     try_module_get(THIS_MODULE);
 
