@@ -11,52 +11,41 @@ fn main()
 
         // Read speed
         {
-            let mut file = File::open("/dev/project_dev").expect("");
+            let mut file = File::open("/dev/project_dev").expect("Failed to open device");
             let mut buf = String::new();
-            file.read_to_string(&mut buf).expect("");
+            file.read_to_string(&mut buf).expect("Failed to read");
             speed = buf.trim().parse::<i32>().unwrap_or(0);
             println!("Speed: {}", speed);
         }
 
-        let level = (speed * 15) / 100;
-
-        let (led, duty) = match level {
-            0..=4 => (1, level_to_duty(level)),
-            5..=9 => (2, level_to_duty(level - 5)),
-            10..=14 => (3, level_to_duty(level - 10)),
-            _ => (1, 0), // Default to LED1 off if out of bounds
+        let (duty1, duty2, duty3) = match speed {
+            0 => (0, 0, 0),
+            1..=5 => (25, 0, 0),
+            6..=10 => (50, 0, 0),
+            11..=15 => (75, 0, 0),
+            16..=20 => (100, 0, 0),
+            21..=25 => (100, 25, 0),
+            26..=30 => (100, 50, 0),
+            31..=35 => (100, 75, 0),
+            36..=40 => (100, 100, 0),
+            41..=45 => (100, 100, 25),
+            46..=50 => (100, 100, 50),
+            51..=55 => (100, 100, 75),
+            56..=60 => (100, 100, 100),
+            _ => (100, 100, 100),
         };
 
-        set_leds(led, duty);
+        set_led(1, duty1);
+        set_led(2, duty2);
+        set_led(3, duty3);
 
         thread::sleep(Duration::from_millis(500)); // Poll every 500ms
     }
 }
 
-fn level_to_duty(level: i32) -> i32
+fn set_led(led: i32, duty: i32)
 {
-    match level {
-        0 => 0,
-        1 => 25,
-        2 => 50,
-        3 => 75,
-        4 => 100,
-        _ => 0,
-    }
-}
-
-fn set_leds(active_led: i32, duty: i32)
-{
-    for led in 1..=3
-    {
-        let mut file = File::create("/dev/project_dev").expect("");
-
-        if led == active_led {
-            let cmd = format!("{} {}", led, duty);
-            file.write_all(cmd.as_bytes()).expect("");
-        } else {
-            let cmd = format!("{} 0", led);
-            file.write_all(cmd.as_bytes()).expect("");
-        }
-    }
+    let mut file = File::create("/dev/project_dev").expect("Failed to open device for writing");
+    let cmd = format!("{} {}", led, duty);
+    file.write_all(cmd.as_bytes()).expect("Failed to write");
 }
