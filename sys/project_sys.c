@@ -163,7 +163,7 @@ static ssize_t speed_show(struct kobject *kobj, struct kobj_attribute *attr, cha
     return sprintf(buf, "%d\n", speed);
 }
 
-static struct kobj_attribute speed_attr = __ATTR(speed, 0444, speed_show, NULL);
+static struct kobj_attribute speed_attr = __ATTR(speed, 0660, speed_show, NULL);
 
 static ssize_t led1_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
@@ -171,7 +171,7 @@ static ssize_t led1_store(struct kobject *kobj, struct kobj_attribute *attr, con
     return count;
 }
 
-static struct kobj_attribute led1_attr = __ATTR(led1, 0220, NULL, led1_store);
+static struct kobj_attribute led1_attr = __ATTR(led1, 0660, NULL, led1_store);
 
 static ssize_t led2_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
@@ -179,7 +179,7 @@ static ssize_t led2_store(struct kobject *kobj, struct kobj_attribute *attr, con
     return count;
 }
 
-static struct kobj_attribute led2_attr = __ATTR(led2, 0220, NULL, led2_store);
+static struct kobj_attribute led2_attr = __ATTR(led2, 0660, NULL, led2_store);
 
 static ssize_t led3_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
@@ -187,7 +187,7 @@ static ssize_t led3_store(struct kobject *kobj, struct kobj_attribute *attr, con
     return count;
 }
 
-static struct kobj_attribute led3_attr = __ATTR(led3, 0220, NULL, led3_store);
+static struct kobj_attribute led3_attr = __ATTR(led3, 0660, NULL, led3_store);
 
 static struct attribute *attrs[] = {
     &speed_attr.attr,
