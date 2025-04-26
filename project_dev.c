@@ -32,7 +32,8 @@
 
 #define GPIO_LED1   2
 #define GPIO_LED2   17
-#define GPIO_LED3   27
+//#define GPIO_LED3   27
+#define GPIO_LED3   12
 #define GPIO_BTN1   5
 #define GPIO_BTN2   6
 
@@ -76,9 +77,9 @@ static void init_led_gpios(void)
     /* GPFSEL0: GPIO2 output (bits 6-8 = 001) */
     writel((1 << 6), addr);
     /* GPFSEL1: GPIO17 output (bits 21-23 = 001) */
-    writel((1 << 21), addr + 0x04);
+    writel(((1 << 21)|(1 << 6)), addr+1);
     /* GPFSEL2: GPIO27 output (bits 21-23 = 001) */
-    writel((1 << 21), addr + 0x08);
+    //writel((1 << 21), addr+2);
     // /* Keep gpio_base for later set/clr via offsets */
     // gpio_base = ioremap(GPIO_BASE_PHYS, GPIO_LEN);
 }
@@ -111,7 +112,7 @@ static enum hrtimer_restart led2_cb(struct hrtimer *timer)
     void __iomem *clr = addr + GPCLR_OFFSET;
 
     led2_state = !led2_state;
-    writel(1 << GPIO_LED2, led2_state ? (addr+7) : (addr+10));
+    writel((1<<GPIO_LED2), led2_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led2_timer, led2_state ? led2_on : led2_off);
 
     return HRTIMER_RESTART;
@@ -123,7 +124,7 @@ static enum hrtimer_restart led3_cb(struct hrtimer *timer)
     void __iomem *clr = addr + GPCLR_OFFSET;
     
     led3_state = !led3_state;
-    writel(1 << GPIO_LED3, led3_state ? (addr+7) : (addr+10));
+    writel((1<<GPIO_LED3), led3_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led3_timer, led3_state ? led3_on : led3_off);
 
     return HRTIMER_RESTART;
