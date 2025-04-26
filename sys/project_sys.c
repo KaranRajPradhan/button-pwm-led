@@ -17,6 +17,8 @@
 #define GPCLR_OFFSET 0x28
 #define GPLEV_OFFSET 0x34
 
+#define BUF_LEN 124
+
 #define GPIO_LED1 2
 #define GPIO_LED2 17
 #define GPIO_LED3 12
@@ -263,6 +265,10 @@ static int __init project_init(void)
     if (retval)
         kobject_put(project_kobj);
 
+    pr_info("Initing LED GPIOs...\n");
+    init_led_gpios();
+
+    pr_info("Initing LED timers...\n");
     hrtimer_init(&led1_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     hrtimer_init(&led2_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     hrtimer_init(&led3_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -270,9 +276,9 @@ static int __init project_init(void)
     led2_timer.function = &led2_cb;
     led3_timer.function = &led3_cb;
 
+    pr_info("Initing button poll timer...\n");
     hrtimer_init(&btn_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     btn_poll_timer.function = btn_poll_cb;
-
     hrtimer_start(&btn_poll_timer, ktime_set(0, 1000000), HRTIMER_MODE_REL);
 
     return retval;
