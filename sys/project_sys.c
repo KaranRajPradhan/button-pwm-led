@@ -160,6 +160,7 @@ static enum hrtimer_restart btn_poll_cb(struct hrtimer *timer)
 static ssize_t speed_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
     calculate_speed();
+    pr_info("Speed read: %d\n", speed);
     return sprintf(buf, "%d\n", speed);
 }
 
@@ -168,6 +169,7 @@ static struct kobj_attribute speed_attr = __ATTR(speed, 0660, speed_show, NULL);
 static ssize_t led1_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     sscanf(buf, "%d", &led1_duty);
+    pr_info("LED1 duty updated to %d\n", led1_duty);
     return count;
 }
 
@@ -176,6 +178,7 @@ static struct kobj_attribute led1_attr = __ATTR(led1, 0660, NULL, led1_store);
 static ssize_t led2_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     sscanf(buf, "%d", &led2_duty);
+    pr_info("LED2 duty updated to %d\n", led2_duty);
     return count;
 }
 
@@ -184,6 +187,7 @@ static struct kobj_attribute led2_attr = __ATTR(led2, 0660, NULL, led2_store);
 static ssize_t led3_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     sscanf(buf, "%d", &led3_duty);
+    pr_info("LED3 duty updated to %d\n", led3_duty);
     return count;
 }
 
@@ -207,6 +211,7 @@ static int __init project_init(void)
 {
     int retval;
 
+    pr_info("project_sys: Module initialized\n");
     addr = ioremap(GPIO_BASE_ADDR, 0x100);
 
     project_kobj = kobject_create_and_add(DEVICE_NAME, kernel_kobj);
@@ -241,6 +246,7 @@ static void __exit project_exit(void)
 
     iounmap(addr);
     kobject_put(project_kobj);
+    pr_info("project_sys: Module exited\n");
 }
 
 module_init(project_init);
