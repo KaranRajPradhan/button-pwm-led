@@ -94,22 +94,15 @@ static void init_led_gpios(void)
 
 static enum hrtimer_restart led1_cb(struct hrtimer *timer)
 {
-    //pr_info("in led1_cb: led1_state=%d\n", led1_state);
-    void __iomem *set = addr + GPSET_OFFSET;
-    void __iomem *clr = addr + GPCLR_OFFSET;
-
     led1_state = !led1_state;
     writel((1<<GPIO_LED1), led1_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led1_timer, led1_state ? led1_on : led1_off);
-    
+
     return HRTIMER_RESTART;
 }
 
 static enum hrtimer_restart led2_cb(struct hrtimer *timer)
 {
-    void __iomem *set = addr + GPSET_OFFSET;
-    void __iomem *clr = addr + GPCLR_OFFSET;
-
     led2_state = !led2_state;
     writel((1<<GPIO_LED2), led2_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led2_timer, led2_state ? led2_on : led2_off);
@@ -119,9 +112,6 @@ static enum hrtimer_restart led2_cb(struct hrtimer *timer)
 
 static enum hrtimer_restart led3_cb(struct hrtimer *timer)
 {
-    void __iomem *set = addr + GPSET_OFFSET;
-    void __iomem *clr = addr + GPCLR_OFFSET;
-    
     led3_state = !led3_state;
     writel((1<<GPIO_LED3), led3_state ? (addr+7) : (addr+10));
     hrtimer_forward_now(&led3_timer, led3_state ? led3_on : led3_off);
