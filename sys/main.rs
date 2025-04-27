@@ -46,6 +46,7 @@ fn main() {
     loop {
         let speed = read_speed();
         let (led1_duty, led2_duty, led3_duty) = map_speed_to_leds(speed);
+        println!("Speed: {}, Duty Cycle: LED1: {}, LED2: {}, LED3: {}", speed, led1_duty, led2_duty, led3_duty);
 
         write_led("led1", led1_duty);
         write_led("led2", led2_duty);

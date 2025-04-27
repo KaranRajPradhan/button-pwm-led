@@ -35,6 +35,7 @@ fn main()
             _ => (100, 100, 100),
         };
 
+        println!("Duty Cycle: LED1: {}, LED2: {}, LED3: {}", duty1, duty2, duty3);
         set_led(1, duty1);
         set_led(2, duty2);
         set_led(3, duty3);
